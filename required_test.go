@@ -9,7 +9,8 @@ import (
 )
 
 func TestCheckRequiredDeepNested(t *testing.T) {
-	var nonStruct int = 1
+	var nonStruct int
+	nonStruct = 1
 
 	type Street struct {
 		Number string `required:"true"`

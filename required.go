@@ -27,10 +27,10 @@ func Check(s any) ([]string, error) {
 		return nil, ErrNotStructOrPtr
 	}
 
-	return check(s, ""), nil
+	return check_internal(s, ""), nil
 }
 
-func check(s any, parentPath string) []string {
+func check_internal(s any, parentPath string) []string {
 	var missing []string
 
 	val := reflect.Indirect(reflect.ValueOf(s))
@@ -59,7 +59,7 @@ func check(s any, parentPath string) []string {
 
 		// Recursively check nested struct or non-zero pointer
 		if value.Kind() == reflect.Struct || (value.Kind() == reflect.Ptr && !value.IsZero()) {
-			nestedMissing := check(value.Interface(), fieldPath)
+			nestedMissing := check_internal(value.Interface(), fieldPath)
 			missing = append(missing, nestedMissing...)
 		}
 	}
