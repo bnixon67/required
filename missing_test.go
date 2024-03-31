@@ -9,7 +9,7 @@ import (
 	"github.com/bnixon67/required"
 )
 
-func ExampleCheck() {
+func ExampleMissingFields() {
 	type Address struct {
 		City  string
 		State string `required:"true"`
@@ -25,7 +25,7 @@ func ExampleCheck() {
 
 	person := Person{}
 
-	missingFields, err := required.Check(person)
+	missingFields, err := required.MissingFields(person)
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {
@@ -38,7 +38,7 @@ func ExampleCheck() {
 	// Output: Missing required fields: [Name Address.State]
 }
 
-func TestCheckRequiredDeepNested(t *testing.T) {
+func TestMissingFields(t *testing.T) {
 	var nonStruct = 1
 
 	type Street struct {
@@ -259,13 +259,13 @@ func TestCheckRequiredDeepNested(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := required.Check(tc.input)
+			got, err := required.MissingFields(tc.input)
 
 			if !errors.Is(err, tc.wantErr) {
-				t.Fatalf("CheckRequired() got error = %v, want %v", err, tc.wantErr)
+				t.Fatalf("MissingFields() got error = %v, want %v", err, tc.wantErr)
 			}
 			if !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("CheckRequired() got = %v, want %v", got, tc.want)
+				t.Fatalf("MissingFields() got = %v, want %v", got, tc.want)
 			}
 		})
 	}
