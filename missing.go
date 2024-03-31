@@ -16,7 +16,7 @@ import (
 // Otherwise, it returns a slice of strings, each representing the path to an
 // unset required field. An empty slice indicates all required fields are set.
 //
-// This function is useful to valid if structs are initialized.
+// This function is useful to validate if structs are initialized.
 func MissingFields(s any) ([]string, error) {
 	v := reflect.ValueOf(s)
 

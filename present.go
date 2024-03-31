@@ -14,7 +14,7 @@ import (
 // is not a struct or a pointer to a struct. Otherwise, it returns true if
 // all required fields are set, or false if any are missing.
 //
-// This function simplifies struct initialization validation.
+// This function is useful to check if structs are initialized.
 func ArePresent(s any) (bool, error) {
 	v := reflect.ValueOf(s)
 
