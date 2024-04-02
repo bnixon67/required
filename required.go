@@ -10,7 +10,21 @@ package required
 
 import (
 	"errors"
+	"reflect"
 )
 
-// ErrNotStructOrPtr is used if input is not a struct or a pointer to a struct.
+// ErrNotStructOrPtr indicates that the input argument is neither a struct
+// nor a pointer to a struct.
 var ErrNotStructOrPtr = errors.New("not a struct or pointer to a struct")
+
+// isRequiredAndZero checks if the field is required and zero.
+func isRequiredAndZero(field reflect.StructField, fieldValue reflect.Value) bool {
+	requiredTag, hasRequired := field.Tag.Lookup("required")
+	return hasRequired && requiredTag == "true" && fieldValue.IsZero()
+}
+
+// checkNested determines if the field value is a struct or a non-zero
+// pointer that should be recursively checked for required unset fields.
+func checkNested(fieldValue reflect.Value) bool {
+	return fieldValue.Kind() == reflect.Struct || (fieldValue.Kind() == reflect.Ptr && !fieldValue.IsZero())
+}

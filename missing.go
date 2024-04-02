@@ -7,61 +7,54 @@ import (
 	"reflect"
 )
 
-// MissingFields returns names of struct fields tagged as `required:"true"`
-// that are non zero.
-//
-// It accepts any type and returns ErrNotStructOrPtr if the input is not a
-// struct or a pointer to a struct.
-//
-// Otherwise, it returns a slice of strings, each representing the path to an
-// unset required field. An empty slice indicates all required fields are set.
-//
-// This function is useful to validate if structs are initialized.
-func MissingFields(s any) ([]string, error) {
-	v := reflect.ValueOf(s)
-
-	if reflect.Indirect(v).Kind() != reflect.Struct {
+// MissingFields finds unset required fields in a struct, identified by the
+// `required:"true"` tag.  It returns an empty slice if all required fields
+// are set or a slice of paths to unset required fields otherwise.
+func MissingFields(input any) ([]string, error) {
+	inputValue := reflect.Indirect(reflect.ValueOf(input))
+	if inputValue.Kind() != reflect.Struct {
 		return nil, ErrNotStructOrPtr
 	}
 
-	// Return result of the recursive check
-	return missingInternal(v, ""), nil
+	return findMissing(inputValue, ""), nil
 }
 
-func missingInternal(v reflect.Value, parentPath string) []string {
-	var missing []string
+// buildFieldPath constructs the path to a field, prefixed by its parent
+// path if present.
+func buildFieldPath(parentPath, fieldName string) string {
+	if parentPath == "" {
+		return fieldName
+	}
+	return parentPath + "." + fieldName
+}
 
-	v = reflect.Indirect(v)
+// findMissing recursively identifies unset fields tagged as required,
+// returning their paths.
+func findMissing(inputValue reflect.Value, parentPath string) []string {
+	var missingFields []string
+	inputValue = reflect.Indirect(inputValue)
 
 	// Ignore non-structs.
-	if v.Kind() != reflect.Struct {
-		return missing
+	if inputValue.Kind() != reflect.Struct {
+		return missingFields
 	}
 
-	typ := v.Type()
-	for i := 0; i < v.NumField(); i++ {
+	typ := inputValue.Type()
+	for i := 0; i < inputValue.NumField(); i++ {
 		field := typ.Field(i)
-		value := v.Field(i)
+		fieldValue := inputValue.Field(i)
+		fieldPath := buildFieldPath(parentPath, field.Name)
 
-		// Construct fieldPath, prefixing with parentPath if necessary.
-		fieldPath := field.Name
-		if parentPath != "" {
-			fieldPath = parentPath + "." + field.Name
+		if isRequiredAndZero(field, fieldValue) {
+			missingFields = append(missingFields, fieldPath)
+			continue // Field required, skip recursive checks
 		}
 
-		// Determine if the field is required.
-		requiredTag, hasRequired := field.Tag.Lookup("required")
-		if hasRequired && requiredTag == "true" && value.IsZero() {
-			missing = append(missing, fieldPath)
-			continue // Skip further checks since required.
-		}
-
-		// Recursively check nested struct or non-zero pointer
-		if value.Kind() == reflect.Struct || (value.Kind() == reflect.Ptr && !value.IsZero()) {
-			nestedMissing := missingInternal(value, fieldPath)
-			missing = append(missing, nestedMissing...)
+		if checkNested(fieldValue) {
+			nestedMissing := findMissing(fieldValue, fieldPath)
+			missingFields = append(missingFields, nestedMissing...)
 		}
 	}
 
-	return missing
+	return missingFields
 }

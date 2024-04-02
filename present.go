@@ -7,49 +7,38 @@ import (
 	"reflect"
 )
 
-// ArePresent checks if all struct fields tagged as `required:"true"` are
-// non-zero.
-//
-// It accepts any type and returns false and ErrNotStructOrPtr if the input
-// is not a struct or a pointer to a struct. Otherwise, it returns true if
-// all required fields are set, or false if any are missing.
-//
-// This function is useful to check if structs are initialized.
-func ArePresent(s any) (bool, error) {
-	v := reflect.ValueOf(s)
-
-	if reflect.Indirect(v).Kind() != reflect.Struct {
+// ArePresent verifies all struct fields tagged as `required:"true"`
+// are non-zero.  Returns true if all required fields are set, false and
+// ErrNotStructOrPtr if the input is not a struct or its pointer.
+func ArePresent(input any) (bool, error) {
+	inputValue := reflect.Indirect(reflect.ValueOf(input))
+	if inputValue.Kind() != reflect.Struct {
 		return false, ErrNotStructOrPtr
 	}
 
-	// Return the result of the recursive check.
-	return presentInternal(v), nil
+	return checkPresent(inputValue), nil
 }
 
-func presentInternal(v reflect.Value) bool {
-	v = reflect.Indirect(v) // Dereference pointer, if any
+// checkPresent recursively checks if required fields are present.
+func checkPresent(inputValue reflect.Value) bool {
+	inputValue = reflect.Indirect(inputValue)
 
 	// Ignore non-structs.
-	if v.Kind() != reflect.Struct {
+	if inputValue.Kind() != reflect.Struct {
 		return true
 	}
 
-	typ := v.Type()
-	for i := 0; i < v.NumField(); i++ {
+	typ := inputValue.Type()
+	for i := 0; i < inputValue.NumField(); i++ {
 		field := typ.Field(i)
-		value := v.Field(i)
+		fieldValue := inputValue.Field(i)
 
-		// Check if field is required and missing
-		requiredTag, hasRequired := field.Tag.Lookup("required")
-		if hasRequired && requiredTag == "true" && value.IsZero() {
-			return false // Found a required field that is missing.
+		if isRequiredAndZero(field, fieldValue) {
+			return false
 		}
 
-		// Recursively check nested struct or non-zero pointer
-		if value.Kind() == reflect.Struct || (value.Kind() == reflect.Ptr && !value.IsZero()) {
-			if !presentInternal(value) {
-				return false
-			}
+		if checkNested(fieldValue) && !checkPresent(fieldValue) {
+			return false
 		}
 	}
 
