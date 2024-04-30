@@ -16,11 +16,11 @@ func MissingFields(input any) ([]string, error) {
 		return nil, ErrNotStructOrPtr
 	}
 
-	return findMissing(inputValue, ""), nil
+	return findMissing(inputValue, "", true), nil
 }
 
 // buildFieldPath constructs the path to a field, prefixed by its parent
-// path if present.
+// path if present. For top-level fields, only the field name is used.
 func buildFieldPath(parentPath, fieldName string) string {
 	if parentPath == "" {
 		return fieldName
@@ -30,7 +30,7 @@ func buildFieldPath(parentPath, fieldName string) string {
 
 // findMissing recursively identifies unset fields tagged as required,
 // returning their paths.
-func findMissing(inputValue reflect.Value, parentPath string) []string {
+func findMissing(inputValue reflect.Value, parentPath string, isDirectEmbedded bool) []string {
 	var missingFields []string
 	inputValue = reflect.Indirect(inputValue)
 
@@ -43,15 +43,31 @@ func findMissing(inputValue reflect.Value, parentPath string) []string {
 	for i := 0; i < inputValue.NumField(); i++ {
 		field := typ.Field(i)
 		fieldValue := inputValue.Field(i)
-		fieldPath := buildFieldPath(parentPath, field.Name)
 
-		if isRequiredAndZero(field, fieldValue) {
-			missingFields = append(missingFields, fieldPath)
-			continue // Field required, skip recursive checks
+		// Check if the current field is embedded
+		isEmbedded := field.Anonymous && isDirectEmbedded
+
+		// Calculate the current field path
+		fieldPath := parentPath
+		if !isEmbedded {
+			fieldPath = buildFieldPath(parentPath, field.Name)
 		}
 
+		// Check if the field is required and zero
+		if isRequiredAndZero(field, fieldValue) {
+			if fieldPath != "" {
+				missingFields = append(missingFields, fieldPath)
+			} else {
+				// Handle cases where the field might be a top-level embedded struct
+				missingFields = append(missingFields, field.Name)
+			}
+			continue
+
+		}
+
+		// Recurse into nested structs, passing true only if the current field is embedded
 		if checkNested(fieldValue) {
-			nestedMissing := findMissing(fieldValue, fieldPath)
+			nestedMissing := findMissing(fieldValue, fieldPath, field.Anonymous)
 			missingFields = append(missingFields, nestedMissing...)
 		}
 	}

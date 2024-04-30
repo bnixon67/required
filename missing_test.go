@@ -35,7 +35,8 @@ func ExampleMissingFields() {
 			fmt.Println("All required fields are set.")
 		}
 	}
-	// Output: Missing required fields: [Name Address.State]
+
+	// Output: Missing required fields: [Name State]
 }
 
 func TestMissingFields(t *testing.T) {
@@ -76,6 +77,18 @@ func TestMissingFields(t *testing.T) {
 	type EmbeddedOptional struct {
 		Name string
 		Address
+	}
+
+	type AppConfig struct {
+		Name string `required:"true"`
+	}
+
+	type Config struct {
+		App AppConfig
+	}
+
+	type ParentConfig struct {
+		Config
 	}
 
 	tests := []struct {
@@ -253,7 +266,12 @@ func TestMissingFields(t *testing.T) {
 					State: "ST",
 				},
 			},
-			want: []string{"Address.Street", "Address.Zip"},
+			want: []string{"Street", "Zip"},
+		},
+		{
+			name:  "embedded app",
+			input: ParentConfig{},
+			want:  []string{"App.Name"},
 		},
 	}
 
